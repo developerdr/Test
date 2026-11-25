@@ -18,7 +18,7 @@ unclassified:
 jobs:
   - script: >
       pipelineJob('springboot-karate-demo') {
-        description('Builds the Spring Boot app, runs Karate API tests, deploys it on port 8081')
+        description('Builds the Spring Boot app, runs Karate API tests, deploys it on port 9091')
         definition {
           cpsScm {
             scm {

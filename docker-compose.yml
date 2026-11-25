@@ -4,7 +4,7 @@ services:
     container_name: jenkins-karate
     ports:
       - "8090:8080"   # Jenkins UI
-      - "8081:8081"   # app deployed by the pipeline
+      - "9091:9091"   # app deployed by the pipeline
     environment:
       JAVA_OPTS: >-
         -Djenkins.install.runSetupWizard=false

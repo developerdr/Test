@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        APP_PORT = '8081'
+        APP_PORT = '9091'
     }
 
     stages {
