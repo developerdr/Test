@@ -41,7 +41,7 @@ Within about 2 minutes a new build appears under **Build History** on the job pa
 
 **Manually:** on the job page, click **Build Now**. Use this to re-run tests without a new commit.
 
-On a brand-new Jenkins, polling starts as soon as Jenkins is up. If no build appears after a push, click **Build Now** once.
+Jenkins polls using the settings of the last build. After the job's repository or branch changes, click **Build Now** once; pushes trigger builds on their own after that.
 
 ## What the pipeline does and where to see results
 
