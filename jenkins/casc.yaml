@@ -1,0 +1,34 @@
+jenkins:
+  systemMessage: "Spring Boot + Karate demo"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD:-admin}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "http://localhost:8090/"
+
+jobs:
+  - script: >
+      pipelineJob('springboot-karate-demo') {
+        description('Builds the Spring Boot app, runs Karate API tests, deploys it on port 8081')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('file:///project') }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+        }
+      }
