@@ -16,15 +16,23 @@ unclassified:
     url: "http://localhost:8090/"
 
 jobs:
-  - script: >
+  - script: |
       pipelineJob('springboot-karate-demo') {
         description('Builds the Spring Boot app, runs Karate API tests, deploys it on port 9091')
+        properties {
+          pipelineTriggers {
+            triggers {
+              // poll GitHub every ~2 minutes; a new commit starts a build
+              pollSCM { scmpoll_spec('H/2 * * * *') }
+            }
+          }
+        }
         definition {
           cpsScm {
             scm {
               git {
-                remote { url('file:///project') }
-                branch('*/main')
+                remote { url('https://github.com/developerdr/Test.git') }
+                branch('*/master')
               }
             }
             scriptPath('Jenkinsfile')

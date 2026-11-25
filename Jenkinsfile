@@ -6,6 +6,11 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
+    triggers {
+        // poll GitHub every ~2 minutes; a new commit on master starts a build
+        pollSCM('H/2 * * * *')
+    }
+
     environment {
         APP_PORT = '9091'
     }
