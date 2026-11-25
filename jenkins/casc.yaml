@@ -7,9 +7,24 @@ jenkins:
       users:
         - id: "admin"
           password: "${JENKINS_ADMIN_PASSWORD:-admin}"
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "BLACKDUCK_URL"
+            value: "${BLACKDUCK_URL:-}"
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              id: "blackduck-token"
+              description: "Black Duck SCA API token"
+              scope: GLOBAL
+              secret: "${BLACKDUCK_API_TOKEN:-not-set}"
 
 unclassified:
   location:
@@ -18,7 +33,7 @@ unclassified:
 jobs:
   - script: |
       pipelineJob('springboot-karate-demo') {
-        description('Builds the Spring Boot app, runs Karate API tests, deploys it on port 9091')
+        description('Builds the app, runs Karate API tests, SAST (SpotBugs) and Black Duck scans, deploys on port 9091, then a Karate+Gatling load test')
         properties {
           pipelineTriggers {
             triggers {

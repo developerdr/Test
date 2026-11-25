@@ -6,6 +6,9 @@ services:
       - "8090:8080"   # Jenkins UI
       - "9091:9091"   # app deployed by the pipeline
     environment:
+      # Black Duck SCA: set these in your shell or a .env file; the scan stage is skipped when the URL is empty
+      BLACKDUCK_URL: ${BLACKDUCK_URL:-}
+      BLACKDUCK_API_TOKEN: ${BLACKDUCK_API_TOKEN:-}
       JAVA_OPTS: >-
         -Djenkins.install.runSetupWizard=false
         -Dhudson.model.DirectoryBrowserSupport.CSP=

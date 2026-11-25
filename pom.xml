@@ -20,6 +20,10 @@
     <properties>
         <java.version>21</java.version>
         <karate.version>1.5.1</karate.version>
+        <!-- karate-gatling 1.5.1 is built against Gatling 3.9.5 / gatling-maven-plugin 4.3.4 -->
+        <gatling-maven-plugin.version>4.3.4</gatling-maven-plugin.version>
+        <spotbugs-maven-plugin.version>4.10.5.0</spotbugs-maven-plugin.version>
+        <findsecbugs.version>1.14.0</findsecbugs.version>
     </properties>
 
     <dependencies>
@@ -39,6 +43,13 @@
             <version>${karate.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Reuses the Karate .feature files as Gatling load tests -->
+        <dependency>
+            <groupId>io.karatelabs</groupId>
+            <artifactId>karate-gatling</artifactId>
+            <version>${karate.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -55,6 +66,35 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Load test: ./mvnw test-compile gatling:test -DbaseUrl=http://host:port -->
+            <plugin>
+                <groupId>io.gatling</groupId>
+                <artifactId>gatling-maven-plugin</artifactId>
+                <version>${gatling-maven-plugin.version}</version>
+                <configuration>
+                    <simulationClass>com.example.demo.perf.BooksSimulation</simulationClass>
+                </configuration>
+            </plugin>
+
+            <!-- SAST: ./mvnw compile spotbugs:check  (SpotBugs + Find Security Bugs) -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>${spotbugs-maven-plugin.version}</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Medium</threshold>
+                    <xmlOutput>true</xmlOutput>
+                    <plugins>
+                        <plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>${findsecbugs.version}</version>
+                        </plugin>
+                    </plugins>
+                </configuration>
             </plugin>
         </plugins>
     </build>

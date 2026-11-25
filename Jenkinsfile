@@ -11,6 +11,12 @@ pipeline {
         pollSCM('H/2 * * * *')
     }
 
+    parameters {
+        booleanParam(name: 'RUN_LOAD_TEST', defaultValue: true, description: 'Run the Gatling load test after deploy')
+        string(name: 'LOAD_USERS', defaultValue: '20', description: 'Virtual users for the load test')
+        string(name: 'LOAD_RAMP_SECONDS', defaultValue: '10', description: 'Seconds over which users are ramped up')
+    }
+
     environment {
         APP_PORT = '9091'
     }
@@ -43,6 +49,38 @@ pipeline {
                         alwaysLinkToLastBuild: true,
                         allowMissing: true
                     ])
+                }
+            }
+        }
+
+        stage('Security Scans') {
+            parallel {
+                stage('SAST (SpotBugs + Find Security Bugs)') {
+                    steps {
+                        // fails the build on any Medium-or-higher finding
+                        sh './mvnw -B spotbugs:check'
+                    }
+                    post {
+                        always {
+                            recordIssues tool: spotBugs(pattern: 'target/spotbugsXml.xml'),
+                                         enabledForFailure: true
+                        }
+                    }
+                }
+
+                stage('Black Duck SCA') {
+                    // runs only when BLACKDUCK_URL is configured (see docker-compose.yml)
+                    when { expression { return env.BLACKDUCK_URL?.trim() } }
+                    steps {
+                        withCredentials([string(credentialsId: 'blackduck-token', variable: 'BLACKDUCK_TOKEN')]) {
+                            security_scan product: 'blackducksca',
+                                          blackducksca_url: env.BLACKDUCK_URL,
+                                          blackducksca_token: env.BLACKDUCK_TOKEN,
+                                          blackducksca_scan_failure_severities: 'BLOCKER,CRITICAL',
+                                          blackducksca_reports_sarif_create: true,
+                                          mark_build_status: 'FAILURE'
+                        }
+                    }
                 }
             }
         }
@@ -83,6 +121,24 @@ pipeline {
                     done
                     echo "App did not start"; tail -50 "$JENKINS_HOME/deploy/demo.log"; exit 1
                 '''
+            }
+        }
+
+        stage('Load Test (Karate + Gatling)') {
+            when { expression { return params.RUN_LOAD_TEST } }
+            steps {
+                // replays the Karate features with many users; fails if >1% errors or p95 >= 1s
+                sh """
+                    ./mvnw -B test-compile gatling:test \
+                        -DbaseUrl=http://localhost:\$APP_PORT \
+                        -Dusers=${params.LOAD_USERS} \
+                        -DrampSeconds=${params.LOAD_RAMP_SECONDS}
+                """
+            }
+            post {
+                always {
+                    gatlingArchive()
+                }
             }
         }
     }

@@ -7,3 +7,7 @@ cucumber-reports
 htmlpublisher
 configuration-as-code
 job-dsl
+blackduck-security-scan
+gatling
+warnings-ng
+credentials-binding
