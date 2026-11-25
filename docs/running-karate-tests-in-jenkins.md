@@ -45,13 +45,17 @@ Jenkins polls using the settings of the last build. After the job's repository o
 
 ## What the pipeline does and where to see results
 
-The build fails at stage 2 if any Karate scenario fails, and nothing is deployed.
+A failing Karate scenario, security finding or load-test threshold fails the build. Nothing is deployed if tests or scans fail.
 
 1. **Checkout:** pulls the commit from GitHub.
 2. **Build & Karate Tests:** runs `./mvnw -B clean verify`, which compiles the app and runs every Karate scenario.
-3. **Archive:** saves `target/demo-0.0.1-SNAPSHOT.jar` on the build page.
-4. **Deploy:** stops the previous copy of the app and starts the new jar on port 9091.
-5. **Smoke Test:** calls http://localhost:9091/api/hello until it answers, or fails after 60 seconds.
+3. **Security Scans** (these two run side by side):
+    - **SAST:** SpotBugs with the Find Security Bugs plugin scans the compiled code. Any finding of Medium severity or higher fails the build.
+    - **Black Duck SCA:** the Black Duck Security Scan plugin checks the open-source dependencies. Blocker or Critical issues fail the build. Skipped when no Black Duck server is configured (see below).
+4. **Archive:** saves `target/demo-0.0.1-SNAPSHOT.jar` on the build page.
+5. **Deploy:** stops the previous copy of the app and starts the new jar on port 9091.
+6. **Smoke Test:** calls http://localhost:9091/api/hello until it answers, or fails after 60 seconds.
+7. **Load Test (Karate + Gatling):** replays `books.feature` with many virtual users against the deployed app. Fails if more than 1% of requests fail or the 95th-percentile response time reaches 1 second.
 
 Open a build from **Build History** to see its results:
 
@@ -60,7 +64,44 @@ Open a build from **Build History** to see its results:
 | Cucumber reports | Pass/fail per feature, scenario and step, with charts | Cucumber Reports |
 | Karate Report | Karate's own report, with each HTTP request and response | HTML Publisher |
 | Test Result | JUnit-style pass/fail counts and trend across builds | JUnit |
+| SpotBugs Warnings | SAST findings, with the line of code for each | Warnings Next Generation |
+| Console Output (Black Duck SCA stage) | Scan summary and a link to the full results on your Black Duck server | Black Duck Security Scan |
+| Gatling | Response times, requests per second and errors under load | Gatling |
 | Console Output | The full build log; search for `scenarios:` for the Karate summary | built in |
+
+## Load test settings
+
+Click **Build with Parameters** on the job page to change the load:
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `RUN_LOAD_TEST` | on | Turn the load test stage on or off |
+| `LOAD_USERS` | 20 | Number of virtual users; each runs every scenario in `books.feature` once |
+| `LOAD_RAMP_SECONDS` | 10 | Seconds over which those users start |
+
+The load scenario and its pass/fail thresholds are in `src/test/java/com/example/demo/perf/BooksSimulation.java`. To run it on your machine, start the app, then run:
+
+```
+./mvnw test-compile gatling:test -DbaseUrl=http://localhost:8080 -Dusers=20 -DrampSeconds=10
+```
+
+The report is written to `target/gatling/`.
+
+## Turn on the Black Duck scan
+
+The Black Duck stage needs a Black Duck SCA server and an API token. Without them it is skipped and the rest of the pipeline still runs.
+
+1. Create a file named `.env` next to `docker-compose.yml` (it is git-ignored, so the token is never committed):
+
+    ```
+    BLACKDUCK_URL=https://your-blackduck-server.example.com
+    BLACKDUCK_API_TOKEN=your-api-token
+    ```
+
+2. Recreate Jenkins so it reads them: `docker compose up -d --build`.
+3. Push a commit or click **Build Now**. The **Black Duck SCA** stage now runs.
+
+The token is stored in Jenkins as the secret credential `blackduck-token`. To run SAST on your machine: `./mvnw compile spotbugs:check`.
 
 ## Add or change a Karate test
 
@@ -92,4 +133,7 @@ The console prints `scenarios: N | passed: N | failed: 0` when all pass. Open `t
 | Build fails at Build & Karate Tests | Open **Cucumber reports** or **Karate Report** to see the failing step, fix it, and run `./mvnw verify` locally before pushing again. |
 | Karate Report shows no styling | Jenkins blocks its scripts by default. `docker-compose.yml` turns that check off for this local demo; keep it on for a shared Jenkins. |
 | Smoke Test fails | The app did not start. The end of the build log prints the last 50 lines of the app's log. |
+| SAST stage fails | Open **SpotBugs Warnings** to see each finding. Fix the code, or exclude a false positive with a SpotBugs exclude filter. |
+| Black Duck stage fails before scanning | Check `BLACKDUCK_URL` and the token. Jenkins also needs internet access to download the Black Duck Bridge CLI. |
+| Load test fails | Open **Gatling** to see which request was slow or failed. Lower `LOAD_USERS` to check whether it only fails under heavy load. |
 | Repo becomes private | Jenkins can no longer clone it. Add a GitHub token as a Jenkins credential and select it in the job's Git settings. |
